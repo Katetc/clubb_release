@@ -1,0 +1,94 @@
+commit df1dbd76ba2ecb03a34137394fbb108eba6a3406
+Merge: b5929aa67 ec0644cf8
+Author: bmg929 <bmg2@uwm.edu>
+Date:   Tue May 20 00:55:19 2025 -0500
+
+    Merge branch 'master' of github.com:larson-group/clubb
+
+commit b5929aa672244c4324f925e9c05fb2eb39baa1be
+Author: bmg929 <bmg2@uwm.edu>
+Date:   Tue May 20 00:54:46 2025 -0500
+
+    zm and zt were mixed up in the error prints argument list.
+
+commit ec0644cf80b501f02e9f43a32d39c9aeb784d669
+Author: bmg929 <bmg2@uwm.edu>
+Date:   Mon May 19 23:11:42 2025 -0500
+
+    For the long-duration clubb_generalized_vertical_grid_test, I am
+    shortening the duration of the MC3E runs to half their normal number
+    of timesteps in order to cut down on the time it takes to do the run.
+
+commit c379fef293da5e06976bee216437ffdc1b396f26
+Author: bmg929 <bmg2@uwm.edu>
+Date:   Mon May 19 22:30:12 2025 -0500
+
+    I am adding pass/fail statements specific to the generalized grid test
+    to the code.
+
+commit 6011fadbf84bd9e26f1105695ab4e40d72ae3f71
+Author: bmg929 <bmg2@uwm.edu>
+Date:   Fri May 16 17:24:49 2025 -0500
+
+    I updated run_bindiff_w_flags_config_host_flags to add flag set 3,
+    which, from what I can tell, contains the default CLUBB flag settings
+    for E3SM in the maint-3.0 branch.
+
+commit f9b793fc2d666ae40a33e3e574558b6ea39c78d3
+Author: domkesteffen <42725900+domkesteffen@users.noreply.github.com>
+Date:   Wed May 14 13:06:17 2025 -0500
+
+    Fix jenkins clubb error handling output (#1247)
+    
+    * Modified CLUBB error handling Jenkins test similar to changes in new CAM CLUBB test
+    CAM pull request larson-group/cam#195
+    
+    Changes to Jenkinsfile for clubb_error_handling_gfortran_test so output is cleaner and more descriptive.
+
+commit 942e02ac28ca0981f9a54f4e56d8fc8a16b49b65
+Author: domkesteffen <42725900+domkesteffen@users.noreply.github.com>
+Date:   Tue May 13 12:55:59 2025 -0500
+
+    Removed simple wrappers from clubb_api_module (#1245)
+    
+    * Removed simple wrappers from clubb_api_module
+    CLUBB ticket #1223
+    
+    Removed wrappers and renamed procedures in original modules:
+    - cleanup_clubb_core_api
+    - compute_current_date_api
+    - set_clubb_debug_level_api
+    - clubb_at_least_debug_level_api
+    - lin_interpolate_on_grid_api
+    - pack_pdf_params_api
+    - unpack_pdf_params_api
+    - init_precip_fracs_api
+    - init_pdf_implicit_coefs_terms_api
+    - stats_end_timestep_api
+    - print_clubb_config_flags_api
+    - initialize_tau_sponge_damp_api
+    - finalize_tau_sponge_damp_api
+
+commit 1f2fc1fc313f86736c95e12472ed0d9886a9c46c
+Author: domkesteffen <42725900+domkesteffen@users.noreply.github.com>
+Date:   Fri May 9 12:40:41 2025 -0500
+
+    Fixed and equalized NaN checks in lapack_wrap (#1246)
+    
+    See CAM pull request larson-group/CAM#188
+    
+    Added debug_level_at_least(0) checks where missing and changed debug_level(1) to 0 in lapack_band_solve,
+    so the new CAM CLUBB error handling test can do what it's supposed to do.
+
+commit b7e8ad326ddae6128dfc222922dc10c1a8275700
+Author: bmg929 <bmg2@uwm.edu>
+Date:   Tue May 6 11:34:23 2025 -0500
+
+    Cleaning up some grid generalization issues that were found within
+    l_implemented flag blocks.
+
+commit 6912ae1620711773f96385ece3b9330fc73daf68
+Author: bmg929 <bmg2@uwm.edu>
+Date:   Fri May 2 16:44:43 2025 -0500
+
+    Fixing an error in the previous commit. (lol, good ol' find and replace)
