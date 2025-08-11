@@ -2,6 +2,169 @@
 !===============================================================================
 module generalized_grid_test
 
+  ! Guide:
+  !
+  ! *** Where to use generalized grid statements:
+  !
+  ! 1) Where the limits of the loop over the vertical grid are not symmetric
+  !
+  !    Examples of symmetric grid loops:
+  !       do k = 1, nzt
+  !       do k = 2, nzt-1
+  !       do k = 1, nzm
+  !       do k = 2, nzm-1
+  !
+  !    Examples of grid loops that are not symmetric and need special grid
+  !    statements:
+  !
+  !       do k = 1, nzt-1
+  !
+  !       should be replaced by:
+  !
+  !       do k = gr%k_lb_zt, gr%k_ub_zt-grid_dir_indx, gr%grid_dir_indx
+  !
+  !       For an ascending grid, this results in a loop from 1 (lower boundary)
+  !       to nzt-1 with an increment of 1. For a descending grid, this results
+  !       in a loop from nzt (lower boundary) to 2 with an increment of -1.
+  !
+  !       As another example:
+  !
+  !       do k = 2, nzm
+  !
+  !       should be replaced by:
+  !
+  !       do k = gr%k_lb_zm+gr%grid_dir_indx, gr%k_ub_zm, gr%grid_dir_indx
+  !
+  !       For an ascending grid, this results in a loop from 2 to nzm (upper
+  !       boundary) with an increment of 1. For a descending grid, this results
+  !       in a loop from nzm-1 to 1 (upper boundary) with an increment of -1.
+  !
+  ! 2) Statements specific to upper or lower boundary grid levels
+  !
+  !    For example, setting surface values for some variables:
+  !
+  !    do i = 1, ngrdcol
+  !      wpthlp(i,gr%k_lb_zm) = wpthlp_sfc(i)
+  !      wprtp(i,gr%k_lb_zm)  = wprtp_sfc(i)
+  !      upwp(i,gr%k_lb_zm)   = upwp_sfc(i)
+  !      vpwp(i,gr%k_lb_zm)   = vpwp_sfc(i)
+  !    end do
+  !
+  !    As another example, setting the upper or lower boundary conditons used
+  !    in CLUBB's lhs and rhs arrays that are used to advance the predictive
+  !    equations:
+  !
+  !    do i = 1, ngrdcol
+  !      rhs(i,gr%k_lb_zm) = xap2(i,gr%k_lb_zm)
+  !      ! The value of u'^2 or v'^2 at the upper boundary will be set to the
+  !      ! threshold minimum value of w_tol_sqd.
+  !      rhs(i,gr%k_ub_zm) = w_tol_sqd
+  !    end do
+  !
+  ! 3) Loops over the vertical grid that need to be handled in a consistent
+  !    direction, regardless of what grid direction is used
+  !
+  !    A great example of this is CLUBB's traditional length scale calculation,
+  !    which is found in subroutine compute_mixing_length in mixing_length.F90.
+  !    Even though loops are symmetric and the calculation doesn't use
+  !    boundary-specific statements, generalized grid statements are still
+  !    necessary because the calculation starts at the surface or lower boundary
+  !    always integrates upward.
+  !
+  !    Other examples of the code needing to use generalized grid statements
+  !    because calculations are needing to be handled consistently in the same
+  !    direction, regardless of grid direction, are found in the monotonic flux
+  !    limiter and in the vertical hole filler.
+  !
+  ! Notes:
+  !
+  ! All statements where 2 quantities are added together match bit-for-bit when
+  ! compiled with -O0 optimization and in debug mode. In other words,
+  ! A + B = B + A, and it doesn't matter in which order the addition or
+  ! subtraction is handled. However, this isn't necessarily true when 3 or more
+  ! quantities are added together. In other words, A + B + C doesn't necessarily
+  ! match C + B + A bit-for-bit. In order to promote a bit-for-bit match between
+  ! ascending and descending grids and allow for a test to check the grid
+  ! direction integrity of the code, grid generalization statements have been
+  ! added to some places where 3 or more quantities are added together in a row
+  ! to ensure that the addition or subtraction always happens in the same order.
+  !
+  ! *** Comparing Results:
+  !
+  ! When comparing arrays in the vertical, follow the method found
+  ! in this test, as well as in the G-unit test found in
+  ! src/G_unit_test_types/rev_direction_grid_test.F90. The value of a
+  ! thermodynamic-level field found at level nzt in the ascending grid needs
+  ! to match the value found at level 1 in the descending grid, the value
+  ! at level 3 in the ascending grid needs to match the value at level nzt-2
+  ! in the descending grid, etc. Additionally, for lhs arrays, the values along
+  ! the superdiagonal in the ascending grid need to match (in reverse) the
+  ! values along the subdiagonal in the descending grid, etc. Examples of this
+  ! comparison can be found in src/G_unit_test_types/rev_direction_grid_test.F90
+  ! for some commonly used lhs subroutines.
+  !
+  ! *** When the generalized vertical grid test fails:
+  !
+  ! 1) Check which flagset number or numbers fail. The flag changes
+  !    associated with each flagset can be found in the run_scripts directory
+  !    in the file run_bindiff_w_flags_config_core_flags.json (for the
+  !    test clubb_generalized_vertical_grid_test) or in the file
+  !    run_bindiff_w_flags_config_host_flags.json (for the
+  !    test clubb_generalized_vert_grid_host_flags). Note that the test script
+  !    automatically runs the unaltered default flag set as the final flagset.
+  !    (The .json file might list 17 flagsets, and then the default
+  !    configuration is run as flagset 18.)
+  !
+  ! 2) Within a test for a flag set, all CLUBB test cases are run. Note which
+  !    cases fail and pick a single case to use to debug. When there's a choice,
+  !    choose a simpler, shorter case to use for debugging.
+  !
+  ! 3) Run the grid generalization test manually. The two main necessities are:
+  !
+  !    a) Setting l_test_grid_generalization to true in the file
+  !       src/CLUBB_core/model_flags.F90; and
+  !
+  !    b) Compiling using the compiler script linux_x86_64_gfortran_debug.bash,
+  !       which uses -O0 compiler optimization and debug settings, with the
+  !       command (when run from the compile directory):
+  !       ./compile.bash -c config/linux_x86_64_gfortran_debug.bash.
+  !
+  !    Further modifications that you might want or need to make
+  !    (especially when running one of the CGILS cases) can be found by
+  !    following the steps listed in the Jenkins test recipe in
+  !    jenkins_tests/clubb_generalized_vertical_grid_test/Jenkinsfile.
+  !
+  ! 4) Locally, change the flag settings for the run located in
+  !    input/tunable_parameters/configurable_model_flags.in to match those
+  !    found in the guilty flag set. Then, run CLUBB for the single case
+  !    that you chose to test with. It is best to do multiple runs and change
+  !    flag settings one at a time until you find the guilty flag.
+  !
+  ! 5) The grid generalization test will exit and fail after the first timestep
+  !    where output that is not bit-for-bit between ascending and descending
+  !    grids is detected. A list of variables (and all grid levels for each
+  !    variable) that are not bit-for-bit will be printed to the screen. Figure
+  !    out which failing variable was calculated first in the sequence. This
+  !    will give a clue to roughly where the error might be located.
+  !
+  ! 6) Use the information gained from which variable goes wrong first, which
+  !    flags are being run (flagset info), and information from the changeset
+  !    when the test went wrong to get an idea of where the issue might be
+  !    in the code. Also take into account the information listed in the
+  !    "Where to use generalized grid statements" section above.
+  !
+  ! 7) Finally, utilize print statements. Narrow it down and then print out
+  !    everything until the culprit is found!
+  !
+  ! 8) Once the culprit is found, rerun all cases using that flagset to check
+  !    that they all pass. Rerun the full Jenkins test after the fix has been
+  !    committed so that it can be run in the background.
+  !
+  ! 9) Congratulations! Now don't break it again!
+  !
+  ! Brian Griffin; May 23, 2025
+ 
+ 
   implicit none
 
   public :: clubb_generalized_grid_testing, &
